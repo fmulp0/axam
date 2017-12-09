@@ -9,6 +9,7 @@
 #define CMD_MESSAGE                     3   /* print a message */
 #define CMD_PUT_FILE                    4   /* Send a file */
 #define CMD_PUT_ADF                     5   /* Send .adf-image to device */
+#define CMD_PWD                         6   /* Get current working dir */
 
 extern error_t cmd_handle_message(void);
 extern error_t cmd_handle_put_file(void);

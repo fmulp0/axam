@@ -10,7 +10,7 @@ struct MsgPort *        TDMP;
 struct IOExtTD *        TDIO;
 
 
-error_t td_init(uint8_t drive) {
+error_t td_init(int8_t drive) {
     error_t error = RESULT_OK;
 
     TDMP = (struct MsgPort *) CreatePort(NULL, NULL);
@@ -40,7 +40,7 @@ error_t td_init(uint8_t drive) {
 
     is_open = 1;
 
-    td_motor(1, &error);
+    error = td_motor(1);
 
     if(error) {
         printf("open device trackdisk.device failed\n");
@@ -53,7 +53,7 @@ error_t td_init(uint8_t drive) {
     return RESULT_OK;
 }
 
-uint32_t td_read_sector(void *data, uint32_t sector_number, error_t *error_ret) {
+error_t td_read_sector(void *data, uint32_t sector_number, size_t *size_ret) {
     error_t error = RESULT_OK;
 
     TDIO->iotd_Count = 0;
@@ -66,15 +66,17 @@ uint32_t td_read_sector(void *data, uint32_t sector_number, error_t *error_ret) 
         /* Inform user that query failed */
         printf("td_read_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
         error = MAKE_ERROR(TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
+
+        return error;
     }
 
-    if(error_ret)
-        *error_ret = error;
+    if(size_ret)
+        *size_ret = TDIO->iotd_Req.io_Actual;
 
-    return TDIO->iotd_Req.io_Actual;
+    return error;
 }
 
-uint32_t td_write_sector(const void *data, uint32_t sector_number, error_t *error_ret) {
+error_t td_write_sector(const void *data, uint32_t sector_number, size_t *size_ret) {
     error_t error = RESULT_OK;
 
     TDIO->iotd_Count = 0;
@@ -88,12 +90,14 @@ uint32_t td_write_sector(const void *data, uint32_t sector_number, error_t *erro
         printf("td_write_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
 
         error = MAKE_ERROR(TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
+
+        return error;
     }
 
-    if(error_ret)
-        *error_ret = error;
+        if(size_ret)
+            *size_ret = TDIO->iotd_Req.io_Actual;
 
-    return TDIO->iotd_Req.io_Actual;
+        return error;
 }
 /*
 int td_disk_change_count() {
@@ -106,7 +110,7 @@ int td_disk_change_count() {
 }
 */
 
-void td_motor(uint8_t on, error_t *error_ret) {
+error_t td_motor(uint8_t on) {
     error_t error = RESULT_OK;
 
     TDIO->iotd_Req.io_Length = on ? 1 : 0;
@@ -118,14 +122,12 @@ void td_motor(uint8_t on, error_t *error_ret) {
         error = MAKE_ERROR(TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
     }
 
-    if(error_ret) {
-        *error_ret = error;
-    }
+    return error;
 }
 
 void td_shutdown(void) {
     if(is_open) {
-        td_motor(0, NULL);
+        td_motor(0);
 
         AbortIO((struct IORequest *) TDIO);
         WaitIO((struct IORequest *) TDIO);

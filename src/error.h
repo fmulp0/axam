@@ -15,6 +15,8 @@
 #define ERR_NO_SPACE            2
 #define ERR_CREATE              3
 #define ERR_OPEN                4
+#define ERR_READ_FAILED         5
+#define ERR_WRITE_FAILED        6
 
 #define RESULT_OK               0
 

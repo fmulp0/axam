@@ -50,7 +50,9 @@ error_t ser_init(void) {
     return RESULT_OK;
 }
 
-size_t ser_read_block(void *data, uint32_t size, error_t *error_ret) {
+error_t ser_read_block(void *data, uint32_t size, size_t *size_ret) {
+    error_t error = RESULT_OK;
+
     _device.SerialIO->IOSer.io_Command  = CMD_READ;
     _device.SerialIO->IOSer.io_Length = size;
     _device.SerialIO->IOSer.io_Data = data;
@@ -58,20 +60,20 @@ size_t ser_read_block(void *data, uint32_t size, error_t *error_ret) {
         /* Inform user that query failed */
         printf("ser_read_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
 
-        if(error_ret)
-            *error_ret = MAKE_ERROR(SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
+        error = MAKE_ERROR(SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
 
-        return 0;
+        return error;
     }
 
-    if(error_ret)
-        *error_ret = 0;
+    if(size_ret)
+        *size_ret = _device.SerialIO->IOSer.io_Actual;
 
-
-    return _device.SerialIO->IOSer.io_Actual;
+    return error;
 }
 
-size_t ser_write_block(const void *data, uint32_t size, error_t *error_ret) {
+error_t ser_write_block(const void *data, uint32_t size, size_t *size_ret) {
+    error_t error = RESULT_OK;
+
     _device.SerialIO->IOSer.io_Command  = CMD_WRITE;
     _device.SerialIO->IOSer.io_Length = size;
     _device.SerialIO->IOSer.io_Data = (void *)data;
@@ -79,16 +81,15 @@ size_t ser_write_block(const void *data, uint32_t size, error_t *error_ret) {
         /* Inform user that query failed */
         printf("ser_write_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
 
-        if(error_ret)
-            *error_ret = MAKE_ERROR(SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
+        error = MAKE_ERROR(SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
 
-        return 0;
+        return error;
     }
 
-    if(error_ret)
-        *error_ret = RESULT_OK;
+    if(size_ret)
+        *size_ret = _device.SerialIO->IOSer.io_Actual;
 
-    return _device.SerialIO->IOSer.io_Actual;
+    return error;
 }
 
 error_t ser_flush(void) {
@@ -108,41 +109,44 @@ error_t ser_flush(void) {
 
 }
 
-uint32_t ser_write_byte(uint8_t data, error_t *error_ret)
+error_t ser_write_byte(uint8_t data, size_t *size_ret)
 {
     char cmd = data;
 
-    return ser_write_block((void *) &cmd, 1, error_ret);
+    return ser_write_block((void *) &cmd, 1, size_ret);
 }
 
 
-cmd_t ser_read_command(error_t *error_ret) {
+error_t ser_read_command(cmd_t *cmd_ret) {
     cmd_t cmd;
+    error_t error = RESULT_OK;
+    uint32_t len = 0;
 
-    uint32_t len = ser_read_block((void *) &cmd, sizeof(cmd_t), error_ret);
-    if(len != sizeof(cmd_t)) {
-        return 0;
-    }
+    error = ser_read_block((void *) &cmd, sizeof(cmd_t), &len);
+    if(error)
+        return error;
 
-    if(error_ret)
-        *error_ret = RESULT_OK;
+    if(cmd_ret)
+        *cmd_ret = cmd;
 
-    return cmd;
+    return error;
 }
 
-uint32_t ser_read_input_size(error_t *error_ret) {
+error_t ser_read_input_size(size_t *size_ret) {
     uint32_t result;
+    size_t len = 0;
+    error_t error = RESULT_OK;
 
 
-    uint32_t len = ser_read_block((void *) &result, sizeof(uint32_t), error_ret);
-    if(len != sizeof(uint32_t)) {
-        return 0;
+    error = ser_read_block((void *) &result, sizeof(uint32_t), &len);
+    if(error) {
+        return error;
     }
 
-    if(error_ret)
-        *error_ret = RESULT_OK;
+    if(size_ret)
+        *size_ret = result;
 
-    return result;
+    return error;
 }
 
 

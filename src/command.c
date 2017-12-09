@@ -11,8 +11,7 @@
 #include <string.h>
 #include <proto/dos.h>
 
-/* __chip  */
-char buffer[TRACK_SIZE + 1];
+char __chip buffer[TRACK_SIZE + 1];
 
 void write_string(const char *s) {
     size_t written, len = strlen(s);
@@ -20,21 +19,21 @@ void write_string(const char *s) {
     if(len == 0)
         return;
 
-    written = ser_write_block((const void *) &len, sizeof(len), &error);
-    if (written != sizeof(len)) {
+    error = ser_write_block((const void *) &len, sizeof(len), &written);
+    if (error) {
         printf("write_string: write length failed: %08x\n", error);
 
         return;
     }
 
-    written = ser_write_block((const void *) s, len, &error);
-    if (written != len) {
+    error = ser_write_block((const void *) s, len, &written);
+    if (error) {
         printf("write_string: write data failed: %08x\n", error);
     }
 }
 
 /*
-void write_code(int code)
+void write_error(error_t code)
 {
     sercom_write_block((const void *) &code, sizeof(code));
     if(code != RESULT_OK)
@@ -43,31 +42,29 @@ void write_code(int code)
 */
 
 
-size_t read_string_into_buffer(error_t *error_ret) {
+error_t read_string_into_buffer(size_t *size_ret) {
     size_t size = 0, read;
-    error_t error;
+    error_t error = RESULT_OK;
 
-    size = ser_read_input_size(&error);
+    error = ser_read_input_size(&size);
     if (error) {
         printf("read_string_into_buffer: ser_read_block failed: %08x\n", error);
-        if(error_ret)
-            *error_ret = error;
 
-        return 0;
+        return error;
     }
     if(size > 511)
         size = 511;
-    read = ser_read_block((void *) buffer, size, &error);
+    error = ser_read_block((void *) buffer, size, &read);
     if(error) {
         printf("read_string_into_buffer: ser_read_block failed: %08x\n", error);
-        if(error_ret)
-            *error_ret = error;
 
-        return read;
+        return error;
     }
     buffer[read] = 0;
+    if(size_ret)
+        *size_ret = read;
 
-    return read;
+    return error;
 }
 
 
@@ -75,7 +72,7 @@ error_t cmd_handle_message() {
     size_t size, bytes_read, to_read;
     error_t error;
 
-    size = ser_read_input_size(&error);
+    error = ser_read_input_size(&size);
     if(error) {
         printf("cmd_handle_message: ser_read_input_size failed: %08x", error);
 
@@ -89,7 +86,7 @@ error_t cmd_handle_message() {
         else
             to_read = size;
 
-        bytes_read = ser_read_block(buffer, to_read, &error);
+        error = ser_read_block(buffer, to_read, &bytes_read);
         if(error) {
             printf("cmd_handle_message: ser_read_input_size failed: %08x\n", error);
 
@@ -98,7 +95,7 @@ error_t cmd_handle_message() {
         buffer[bytes_read] = 0;
         printf(buffer);
         size -= bytes_read;
-        ser_write_byte(0, &error);
+        error = ser_write_byte(0, NULL);
         if(error) {
             printf("td_write_sector cannot send status: %0xd\n", error);
 
@@ -124,7 +121,7 @@ error_t cmd_handle_put_file(void) {
     error_t error;
 
     printf("handle_put_file");
-    read_string_into_buffer(&error);
+    error = read_string_into_buffer(NULL);
     if(error) {
         printf("cmd_handle_put_file: read_string_into_buffer failed: %08x\n", error);
     }
@@ -141,7 +138,7 @@ error_t cmd_handle_put_file(void) {
 
     puts("file successfully created");
 
-    size = ser_read_input_size(&error);
+    error = ser_read_input_size(&size);
     if(error) {
         printf("cmd_handle_put_file: ser_read_input_size failed: %08x\n", error);
 
@@ -154,7 +151,7 @@ error_t cmd_handle_put_file(void) {
             to_read = size - cur;
         }
 
-        bytes_read = ser_read_block(buffer, to_read, &error);
+        error = ser_read_block(buffer, to_read, &bytes_read);
         if(error) {
             printf("cmd_handle_put_file: ser_read_block failed: %08x\n", error);
             _dclose(fh);
@@ -165,7 +162,7 @@ error_t cmd_handle_put_file(void) {
 
         cur += bytes_read;
         /* ser_start(); */
-        ser_write_byte(0, &error);
+        error = ser_write_byte(0, NULL);
         if(error) {
             printf("td_write_sector cannot send status: %0xd\n", error);
             _dclose(fh);
@@ -189,13 +186,13 @@ error_t cmd_handle_put_file(void) {
 
 error_t cmd_handle_put_adf(void) {
     size_t cur_track, rres, wres;
-    uint8_t drive;
+    cmd_t drive;
     error_t error;
 
     printf("handle_put_adf\n");
 
 
-    drive = ser_read_command(&error);
+    error = ser_read_command(&drive);
     if(error) {
         printf("cmd_handle_put_adf read of drive number failed: %08x\n", error);
 
@@ -214,7 +211,7 @@ error_t cmd_handle_put_adf(void) {
 
     while(cur_track < 160) {
 
-        rres = ser_read_block(buffer, TRACK_SIZE, &error);
+        error = ser_read_block(buffer, TRACK_SIZE, &rres);
         if(error) {
             printf("ser_read_block returned error: %0xd\n", error);
             td_shutdown();
@@ -222,7 +219,7 @@ error_t cmd_handle_put_adf(void) {
             return error;
         }
 
-        wres = td_write_sector(buffer, cur_track, &error);
+        error = td_write_sector(buffer, cur_track, &wres);
         if(error) {
             printf("td_write_sector returned error %0xd\n", error);
             td_shutdown();
@@ -233,7 +230,7 @@ error_t cmd_handle_put_adf(void) {
         cur_track++;
         printf("track %d successfully written\n", cur_track);
 
-        ser_write_byte(0, &error);
+        error = ser_write_byte(0, NULL);
         if(error) {
             printf("td_write_sector cannot send status: %0xd\n", error);
             td_shutdown();

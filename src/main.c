@@ -21,11 +21,11 @@ void axam_shutdown(void) {
 }
 
 void axam_main_loop(void) {
-    char cmd = 0;
+    cmd_t cmd = 0;
     error_t error = RESULT_OK;
 
     do {
-        cmd = ser_read_command(&error);
+        error = ser_read_command(&cmd);
         if(error) {
             printf("main loop error reading command: %08x\n", error);
 
