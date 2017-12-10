@@ -120,12 +120,13 @@ error_t cmd_handle_put_file(void) {
     size_t size, cur, to_read, bytes_read;
     error_t error;
 
-    printf("handle_put_file");
+    printf("handle_put_file\n");
     error = read_string_into_buffer(NULL);
     if(error) {
         printf("cmd_handle_put_file: read_string_into_buffer failed: %08x\n", error);
     }
     printf(buffer);
+    printf("\n");
     /* fh = _dcreatx(buffer, 0); */
 
     fh = Open(buffer, MODE_NEWFILE);
@@ -136,7 +137,7 @@ error_t cmd_handle_put_file(void) {
         return error;
     }
 
-    puts("file successfully created");
+    puts("file successfully created\n");
 
     error = ser_read_input_size(&size);
     if(error) {
@@ -177,6 +178,8 @@ error_t cmd_handle_put_file(void) {
 
             return error;
         }
+
+        printf("%d\n", cur);
     }
 
     _dclose(fh);
