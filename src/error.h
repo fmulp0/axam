@@ -17,13 +17,31 @@
 #define ERR_OPEN                4
 #define ERR_READ_FAILED         5
 #define ERR_WRITE_FAILED        6
+#define ERR_LOCK                7
+#define ERR_EXAMINE             8
 
 #define RESULT_OK               0
 
-#define MAKE_ERROR(src, kind, err)   ((((src) & 0xF) << 28) | (((kind) & 0xF) << 24) | ((err) & 0xFFFF))
+#define SUCCEEDED(err_t)        ((err_t).code == RESULT_OK)
+#define FAILED(err_t)           ((err_t).code != RESULT_OK)
+
+#define MAKE_ERROR(error, source, origin, errcode) do { (error).code = (errcode); (error).source_origin = ((origin) << 4) || ((source) & 0x0f); } while(0)
+
+#define ERROR_SOURCE(error)     ((error).source_origin & 0xf)
+#define ERROR_ORIGIN(error)     ((error).source_origin >> 4)
+#define ERROR_CODE(error)       ((error).code)
+
+typedef struct {
+    int code;
+    char source_origin;
+} error_t;
+
+typedef void (*error_function)(error_t e, const char *message, int shutdown);
 
 extern void drain_serial(void);
-extern void error(error_t code, const char *message, int shutdown);
+extern void on_error(error_t code, const char *message, int shutdown);
+extern void set_error_function(error_function fn);
+
 
 
 
