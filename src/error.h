@@ -42,7 +42,4 @@ extern void drain_serial(void);
 extern void on_error(error_t code, const char *message, int shutdown);
 extern void set_error_function(error_function fn);
 
-
-
-
 #endif

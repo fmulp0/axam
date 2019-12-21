@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #undef NULL
+#define NULL 0
 #include <exec/types.h>
 
 typedef signed char         int8_t;

@@ -1,5 +1,6 @@
 *.gch
 *.uaem
+*.asm
 *.o
 *.info
-axam
+axam*

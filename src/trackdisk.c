@@ -2,6 +2,7 @@
 #include "trackdisk.h"
 #include "error.h"
 
+#include <devices/trackdisk.h>
 #include <exec/exec.h>
 #include <stdio.h>
 #include <stdlib.h>
