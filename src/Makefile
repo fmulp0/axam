@@ -10,7 +10,7 @@ SRCS=trackdisk.c error.c command.c main.c serial.c
 OBJS=trackdisk.o error.o command.o main.o serial.o
 ASMS=trackdisk.asm error.asm command.asm main.asm serial.asm
 
-TARGET=axam-0.4.0
+TARGET=axam-0.5.0
 
 $(TARGET) : $(OBJS)
 	$(VLINK) -bamigahunk -x -Bstatic -Cvbcc -Z -mrel $(VBCC_TARGET)/lib/startup.o $^ -L$(VBCC_TARGET)/lib -lvc -lamiga -lauto -o $@

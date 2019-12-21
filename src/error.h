@@ -25,7 +25,7 @@
 #define SUCCEEDED(err_t)        ((err_t).code == RESULT_OK)
 #define FAILED(err_t)           ((err_t).code != RESULT_OK)
 
-#define MAKE_ERROR(error, source, origin, errcode) do { (error).code = (errcode); (error).source_origin = ((origin) << 4) || ((source) & 0x0f); } while(0)
+#define MAKE_ERROR(error, source, origin, errcode) do { (error).code = (errcode); (error).source_origin = (((origin) & 0xf) << 4) || ((source) & 0x0f); } while(0)
 
 #define ERROR_SOURCE(error)     ((error).source_origin & 0xf)
 #define ERROR_ORIGIN(error)     ((error).source_origin >> 4)
@@ -33,7 +33,7 @@
 
 typedef struct {
     int code;
-    char source_origin;
+    int source_origin;
 } error_t;
 
 typedef void (*error_function)(error_t e, const char *message, int shutdown);
