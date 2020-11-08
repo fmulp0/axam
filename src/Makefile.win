@@ -1,14 +1,14 @@
-AMIGA_BASE=/opt/Amiga
-RM=rm -f
+AMIGA_BASE=e:/Development/Amiga
+RM=.\delmult
 VBCC_TARGET=$(AMIGA_BASE)/target
 NDK_1_3=$(AMIGA_BASE)/NDK_1.3
 VBCCM68K=$(AMIGA_BASE)/vbcc/bin/vbccm68k
 VASMM68K=$(AMIGA_BASE)/vasm/vasmm68k_mot_win32
 VLINK=$(AMIGA_BASE)/vlink/vlink
 
-SRCS=trackdisk.c error.c buffer.c command.c console.c copy.c main.c serial.c
-OBJS=trackdisk.o error.o buffer.o command.o console.o copy.o main.o serial.o
-ASMS=trackdisk.asm error.asm buffer.asm command.asm console.asm copy.asm main.asm serial.asm
+SRCS=trackdisk.c error.c buffer.c command.c console.c copy.c file.c main.c serial.c
+OBJS=trackdisk.o error.o buffer.o command.o console.o copy.o file.o main.o serial.o
+ASMS=trackdisk.asm error.asm buffer.asm command.asm console.asm file.asm copy.asm main.asm serial.asm
 
 TARGET=axam-0.6.0
 
@@ -27,6 +27,7 @@ buffer.o : buffer.asm
 command.o : command.asm
 console.o : console.asm
 copy.o : copy.asm
+file.o : file.asm
 main.o : main.asm
 serial.o : serial.asm
 

@@ -1,6 +1,10 @@
+#include "buffer.h"
 #include "command.h"
 #include "serial.h"
 #include "trackdisk.h"
+#include "console.h"
+#include "file.h"
+#include "copy.h"
 
 #include <devices/serial.h>
 #include <proto/exec.h>
@@ -10,21 +14,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-char __chip buffer[TRACK_SIZE + 1];
-
-/*
-void write_error(error_t code)
-{
-    sercom_write_block((const void *) &code, sizeof(code));
-    if(code != RESULT_OK)
-        write_string(errstr);
-}
-*/
 
 
 error_t read_string_into_buffer(int32_t *size_ret) {
     int32_t size = 0, read;
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     error = ser_read_int32(&size);
     if (FAILED(error)) {
@@ -45,9 +39,10 @@ error_t read_string_into_buffer(int32_t *size_ret) {
 }
 
 
+
 void cmd_handle_message() {
-    int32_t size, bytes_read, to_read;
-    error_t error = { RESULT_OK, 0 };
+    int32_t size, bytes_read, to_read, bytes_written;
+    error_t error = { ERR_OK, 0 };
 
     error = ser_read_int32(&size);
     if(FAILED(error)) {
@@ -56,6 +51,9 @@ void cmd_handle_message() {
 
     /* printf("handle message size: %d (0x%x)\n", size, size); */
 
+    error = copy(ser_read_block, console_writer, size, &bytes_written);
+}
+/*
     while(size > 0) {
         if(size > 512)
             to_read = 512;
@@ -80,10 +78,11 @@ void cmd_handle_message() {
         }
     }
 }
+*/
 
 void cmd_handle_put_file(void) {
     int fh;
-    int32_t size, cur, to_read, bytes_read;
+    int32_t size, cur, to_read, bytes_read, bytes_written;
     error_t error;
 
     printf("handle_put_file\n");
@@ -93,8 +92,22 @@ void cmd_handle_put_file(void) {
     }
     printf(buffer);
     printf("\n");
-    /* fh = _dcreatx(buffer, 0); */
+    error = ser_read_int32(&size);
+    if(FAILED(error)) {
+        on_error(error, "cmd_handle_put_file: ser_read_input_size failed", 1);
+    }
 
+    error = file_create_new(buffer);
+    if(FAILED(error))
+    {
+        on_error(error, "cmd_handle_put_file: file_create_new failed", 1);
+    }
+
+    error = copy(ser_read_block, file_writer, size, &bytes_written);
+    file_close();
+}
+
+/*
     fh = Open(buffer, MODE_NEWFILE);
     if(fh < 0) {
         MAKE_ERROR(error, FILESYSTEM, ORIGIN_AX, ERR_EXISTS);
@@ -123,7 +136,6 @@ void cmd_handle_put_file(void) {
         Write(fh, buffer, bytes_read);
 
         cur += bytes_read;
-        /* ser_start(); */
         error = ser_write_error(error);
         if(FAILED(error)) {
             on_error(error, "td_write_sector cannot send status", 0);
@@ -143,7 +155,7 @@ void cmd_handle_put_file(void) {
 
     Close(fh);
 }
-
+*/
 void cmd_handle_put_adf(void) {
     int32_t cur_track, rres, wres;
     cmd_t drive;
@@ -209,7 +221,7 @@ void cmd_handle_put_adf(void) {
 
 void cmd_handle_examine(void)
 {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
     BPTR lock = 0;
     struct FileInfoBlock file_info_block;
 
@@ -259,7 +271,7 @@ void cmd_handle_examine(void)
 
 void cmd_handle_list_dir(void)
 {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
     LONG io_err = 0;
     BPTR lock = 0;
     struct FileInfoBlock file_info_block;

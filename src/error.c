@@ -3,8 +3,6 @@
 
 #include <stdio.h>
 
-char _buffer[512];
-
 static error_function err_fn = 0;
 
 void drain_serial(void)

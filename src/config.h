@@ -2,7 +2,7 @@
 #define _AXAM_CONFIG_H_
 
 #define MAJOR_VERSION       0
-#define MINOR_VERSION       5
+#define MINOR_VERSION       6
 #define PATCH_VERSION       0
 
 #define MAKE_VERSION(maj, min, pat)     ((((maj) & 0xFF) << 16) | (((min) & 0xFF) << 8) | ((pat) & 0xFF))

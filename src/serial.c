@@ -16,7 +16,7 @@ struct SercomDevice _device;
 
 
 error_t ser_init(void) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     _device.SerialMP = (struct MsgPort *) CreatePort(NULL, NULL);
 
@@ -57,7 +57,7 @@ error_t ser_init(void) {
 }
 
 error_t ser_read_block(void *data, int32_t size, int32_t *size_ret) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     _device.SerialIO->IOSer.io_Command  = CMD_READ;
     _device.SerialIO->IOSer.io_Length = size;
@@ -90,7 +90,7 @@ error_t ser_read_int32(int32_t *result) {
 }
 
 error_t ser_write_block(const void *data, int32_t size, int32_t *size_ret) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     _device.SerialIO->IOSer.io_Command  = CMD_WRITE;
     _device.SerialIO->IOSer.io_Length = size;
@@ -111,7 +111,7 @@ error_t ser_write_block(const void *data, int32_t size, int32_t *size_ret) {
 }
 
 error_t ser_flush(void) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     _device.SerialIO->IOSer.io_Command  = CMD_FLUSH;
     _device.SerialIO->IOSer.io_Length = 0;
@@ -152,7 +152,7 @@ error_t ser_write_byte(uint8_t data, int32_t *size_ret)
 
 error_t ser_read_command(cmd_t *cmd_ret) {
     cmd_t cmd;
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
     int32_t len = 0;
 
     error = ser_read_block((void *) &cmd, sizeof(cmd_t), &len);
@@ -186,7 +186,7 @@ error_t ser_read_input_size(int32_t *size_ret) {
 
 error_t ser_write_string(const char *s) {
     int32_t written, len = strlen(s);
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
     if(len == 0)
         return error;
 

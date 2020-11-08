@@ -10,6 +10,7 @@
 #define ORIGIN_OS               1
 #define ORIGIN_AX               2
 
+#define ERR_OK                  0
 /* error codes (for ORIGIN_AX) */
 #define ERR_EXISTS              1
 #define ERR_NO_SPACE            2
@@ -20,10 +21,9 @@
 #define ERR_LOCK                7
 #define ERR_EXAMINE             8
 
-#define RESULT_OK               0
 
-#define SUCCEEDED(err_t)        ((err_t).code == RESULT_OK)
-#define FAILED(err_t)           ((err_t).code != RESULT_OK)
+#define SUCCEEDED(err_t)        ((err_t).code == ERR_OK)
+#define FAILED(err_t)           ((err_t).code != ERR_OK)
 
 #define MAKE_ERROR(error, source, origin, errcode) do { (error).code = (errcode); (error).source_origin = (((origin) & 0xf) << 4) || ((source) & 0x0f); } while(0)
 

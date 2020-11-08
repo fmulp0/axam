@@ -19,7 +19,7 @@ void axam_shutdown(void) {
 
 void axam_main_loop(void) {
     cmd_t cmd = 0;
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     do {
         error = ser_read_command(&cmd);

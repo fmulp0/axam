@@ -13,7 +13,7 @@ struct IOExtTD *        TDIO;
 
 
 error_t td_init(int8_t drive) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     TDMP = (struct MsgPort *) CreatePort(NULL, NULL);
 
@@ -58,7 +58,7 @@ error_t td_init(int8_t drive) {
 }
 
 error_t td_read_sector(void *data, uint32_t sector_number, uint32_t *size_ret) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     TDIO->iotd_Count = 0;
     TDIO->iotd_Req.io_Offset = sector_number * SECTOR_LEN;
@@ -81,7 +81,7 @@ error_t td_read_sector(void *data, uint32_t sector_number, uint32_t *size_ret) {
 }
 
 error_t td_write_sector(const void *data, uint32_t sector_number, uint32_t *size_ret) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     TDIO->iotd_Count = 0;
     TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
@@ -105,7 +105,7 @@ error_t td_write_sector(const void *data, uint32_t sector_number, uint32_t *size
 }
 
 error_t td_format_sector(const void *data, uint32_t sector_number) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     TDIO->iotd_Count = 0;
     TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
@@ -142,7 +142,7 @@ int td_disk_change_count() {
 */
 
 error_t td_motor(uint8_t on) {
-    error_t error = { RESULT_OK, 0 };
+    error_t error = { ERR_OK, 0 };
 
     TDIO->iotd_Req.io_Length = on ? 1 : 0;
     TDIO->iotd_Req.io_Command  = TD_MOTOR;
