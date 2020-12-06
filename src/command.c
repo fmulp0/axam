@@ -5,6 +5,7 @@
 #include "console.h"
 #include "file.h"
 #include "copy.h"
+#include "data.h"
 
 #include <devices/serial.h>
 #include <proto/exec.h>
@@ -15,10 +16,36 @@
 #include <stdio.h>
 
 
+error_t cmd_get(uint8_t *data, int32_t size, cmd_t *cmd_ret)
+{
+    error_t error = ERR_OK;
 
+    if(data == NULL || cmd_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
+    }
+
+    if(error == ERR_OK)
+    {
+        if(size != sizeof(cmd_t))
+        {
+            error = ERR_READ_FAILED;
+        }
+    }
+
+    if(error == ERR_OK)
+    {
+        *cmd_ret = *(cmd_t *) data;
+    }
+
+    return error;
+}
+
+
+/*
 error_t read_string_into_buffer(int32_t *size_ret) {
     int32_t size = 0, read;
-    error_t error = { ERR_OK, 0 };
+    error_t error = ERR_OK;
 
     error = ser_read_int32(&size);
     if (FAILED(error)) {
@@ -37,22 +64,46 @@ error_t read_string_into_buffer(int32_t *size_ret) {
 
     return error;
 }
+*/
 
-
-
-void cmd_handle_message() {
-    int32_t size, bytes_read, to_read, bytes_written;
-    error_t error = { ERR_OK, 0 };
-
-    error = ser_read_int32(&size);
-    if(FAILED(error)) {
-        on_error(error, "cmd_handle_message: ser_read_input_size failed", 1);
+error_t cmd_check(cmd_t command)
+{
+    error_t error = ERR_OK;
+    switch(command)
+    {
+        case CMD_EXIT:
+        case CMD_MESSAGE:
+            break;
+        default:
+            error = ERR_INVALID_ARG;
+            break;
     }
 
-    /* printf("handle message size: %d (0x%x)\n", size, size); */
-
-    error = copy(ser_read_block, console_writer, size, &bytes_written);
+    return error;
 }
+
+error_t cmd_handle_message(void) 
+{
+    int32_t size, bytes_read, to_write, bytes_written;
+    error_t error = ERR_OK;
+    uint8_t *data;
+
+    error = data_stream_packet_read(buffer, ser_reader, &size);
+    if(error == ERR_OK)
+    {
+        to_write = size;
+        do
+        {
+            error = console_writer((const void *)buffer, size, &bytes_written);
+            to_write -= bytes_written;
+        }
+        while(error == ERR_OK && to_write > 0);
+    }
+
+    return error;
+}
+
+
 /*
     while(size > 0) {
         if(size > 512)
@@ -79,7 +130,7 @@ void cmd_handle_message() {
     }
 }
 */
-
+/*
 void cmd_handle_put_file(void) {
     int fh;
     int32_t size, cur, to_read, bytes_read, bytes_written;
@@ -106,7 +157,7 @@ void cmd_handle_put_file(void) {
     error = copy(ser_read_block, file_writer, size, &bytes_written);
     file_close();
 }
-
+*/
 /*
     fh = Open(buffer, MODE_NEWFILE);
     if(fh < 0) {
@@ -156,6 +207,7 @@ void cmd_handle_put_file(void) {
     Close(fh);
 }
 */
+/*
 void cmd_handle_put_adf(void) {
     int32_t cur_track, rres, wres;
     cmd_t drive;
@@ -218,7 +270,8 @@ void cmd_handle_put_adf(void) {
 
     td_shutdown();
 }
-
+*/
+/*
 void cmd_handle_examine(void)
 {
     error_t error = { ERR_OK, 0 };
@@ -268,7 +321,8 @@ void cmd_handle_examine(void)
         exit(1);
     }
 }
-
+*/
+/*
 void cmd_handle_list_dir(void)
 {
     error_t error = { ERR_OK, 0 };
@@ -340,3 +394,4 @@ void cmd_handle_list_dir(void)
     UnLock(lock);
 }
 
+*/

@@ -16,7 +16,9 @@
 extern error_t td_init(int8_t drive);
 extern void td_shutdown(void);
 
-extern error_t td_write_sector(const void *buffer, uint32_t sector_number, uint32_t *size_ret);
+extern error_t td_write_sector(const void *buffer, uint32_t sector_number, int32_t *size_ret);
+extern error_t td_read_sector(void *buffer, uint32_t sector_number, int32_t *size_ret);
+
 extern error_t td_format_sector(const void *buffer, uint32_t sector_number);
 
 extern error_t td_motor(uint8_t on);

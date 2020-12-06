@@ -1,4 +1,5 @@
 #include "serial.h"
+#include "packet.h"
 #include "error.h"
 #include <devices/serial.h>
 #include <stdlib.h>
@@ -14,69 +15,90 @@ struct SercomDevice {
 
 struct SercomDevice _device;
 
+static uint8_t __chip ser_buffer[PACKET_MAX_LENGTH];
 
-error_t ser_init(void) {
-    error_t error = { ERR_OK, 0 };
+error_t ser_init(void) 
+{
+    error_t error = ERR_OK;
 
     _device.SerialMP = (struct MsgPort *) CreatePort(NULL, NULL);
 
-    if(_device.SerialMP == NULL) {
+    if(_device.SerialMP == NULL) 
+    {
         printf("CreatePort failed\n");
-
+        error_update_last(IoErr());
         ser_shutdown();
-
-        MAKE_ERROR(error, SERIAL, ORIGIN_AX, ERR_OPEN);
-        return error;
+        error = ERR_OPEN;
     }
 
-    _device.SerialIO = (struct IOExtSer *) CreateExtIO(_device.SerialMP, sizeof(struct IOExtSer));
-    if (_device.SerialIO == NULL) {
-        printf("CreateExtIO failed\n");
-        ser_shutdown();
-
-        MAKE_ERROR(error, SERIAL, ORIGIN_AX, ERR_OPEN);
-        return error;
+    if(error == ERR_OK)
+    {
+        _device.SerialIO = (struct IOExtSer *) CreateExtIO(_device.SerialMP, sizeof(struct IOExtSer));
+        if (_device.SerialIO == NULL) {
+            printf("CreateExtIO failed\n");
+            error_update_last(IoErr());
+            ser_shutdown();
+            error = ERR_OPEN;
+        }
     }
 
     _device.SerialIO->io_SerFlags = SERF_7WIRE;
-
-    if (OpenDevice(SERIALNAME, 0, (struct IORequest *) _device.SerialIO, 0L)) {
-        printf("OpenDevice failed\n");
-        ser_shutdown();
-
-        MAKE_ERROR(error, SERIAL, ORIGIN_AX, ERR_OPEN);
-        return error;
-    }
-
-    _device.is_open = 1;
-
-    printf("open device %s successful\n", SERIALNAME);
     
-    MAKE_ERROR(error, 0, 0, 0);
-    return error;
-}
+    if(error == ERR_OK)
+    {
+        if (OpenDevice(SERIALNAME, 0, (struct IORequest *) _device.SerialIO, 0L)) {
+            printf("OpenDevice failed\n");
+            error_update_last();
+            ser_shutdown();
 
-error_t ser_read_block(void *data, int32_t size, int32_t *size_ret) {
-    error_t error = { ERR_OK, 0 };
-
-    _device.SerialIO->IOSer.io_Command  = CMD_READ;
-    _device.SerialIO->IOSer.io_Length = size;
-    _device.SerialIO->IOSer.io_Data = data;
-    if (DoIO((struct IORequest *)_device.SerialIO)) {
-        /* Inform user that query failed */
-        printf("ser_read_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
-
-        MAKE_ERROR(error, SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
-
-        return error;
+            error = ERR_OPEN;
+        }
     }
 
-    if(size_ret)
+    if(error == ERR_OK)
+    {
+        _device.is_open = 1;
+    }
+
+    if(error == ERR_OK)
+    {
+        printf("open device %s successful\n", SERIALNAME);
+    }
+    
+    return error;
+}
+
+error_t ser_reader(void *data, int32_t size, int32_t *size_ret) 
+{
+    error_t error = ERR_OK;
+
+    if(data == NULL || size_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
+    }
+
+    if(error == ERR_OK)
+    {
+        _device.SerialIO->IOSer.io_Command  = CMD_READ;
+        _device.SerialIO->IOSer.io_Length = size;
+        _device.SerialIO->IOSer.io_Data = data;
+        if (DoIO((struct IORequest *)_device.SerialIO)) {
+            /* Inform user that query failed */
+            printf("ser_read_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
+            error_update_last(_device.SerialIO->IOSer.io_Error);
+            error = ERR_READ_FAILED;
+        }
+    }
+
+    if(error == ERR_OK)
+    {
         *size_ret = _device.SerialIO->IOSer.io_Actual;
+    }
 
     return error;
 }
 
+/*
 error_t ser_read_int8(int8_t *result) {
     return ser_read_block(result, sizeof(int8_t), 0);
 }
@@ -88,30 +110,40 @@ error_t ser_read_int16(int16_t *result) {
 error_t ser_read_int32(int32_t *result) {
     return ser_read_block(result, sizeof(int32_t), 0);
 }
+*/
+error_t ser_writer(const void *buffer, int32_t size, int32_t *size_ret) 
+{
+    error_t error = ERR_OK;
 
-error_t ser_write_block(const void *data, int32_t size, int32_t *size_ret) {
-    error_t error = { ERR_OK, 0 };
-
-    _device.SerialIO->IOSer.io_Command  = CMD_WRITE;
-    _device.SerialIO->IOSer.io_Length = size;
-    _device.SerialIO->IOSer.io_Data = (void *)data;
-    if (DoIO((struct IORequest *) _device.SerialIO)) {
-        /* Inform user that query failed */
-        printf("ser_write_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
-
-        MAKE_ERROR(error, SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
-
-        return error;
+    if(buffer == NULL || size_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
     }
 
-    if(size_ret)
+    if(error == ERR_OK)
+    {
+        _device.SerialIO->IOSer.io_Command  = CMD_WRITE;
+        _device.SerialIO->IOSer.io_Length = size;
+        _device.SerialIO->IOSer.io_Data = (void *) buffer;
+        if (DoIO((struct IORequest *) _device.SerialIO)) {
+            /* Inform user that query failed */
+            printf("ser_write_block. Error: %d\n", _device.SerialIO->IOSer.io_Error);
+            error_update_last(_device.SerialIO->IOSer.io_Error);
+            return error;
+        }
+    }
+
+    if(error == ERR_OK)
+    {
         *size_ret = _device.SerialIO->IOSer.io_Actual;
+    }
 
     return error;
 }
 
-error_t ser_flush(void) {
-    error_t error = { ERR_OK, 0 };
+error_t ser_flush(void) 
+{
+    error_t error = ERR_OK;
 
     _device.SerialIO->IOSer.io_Command  = CMD_FLUSH;
     _device.SerialIO->IOSer.io_Length = 0;
@@ -120,14 +152,15 @@ error_t ser_flush(void) {
     if (DoIO((struct IORequest *) _device.SerialIO)) {
         /* Inform user that query failed */
         printf("ser_flush. Error - %d\n", _device.SerialIO->IOSer.io_Error);
-        MAKE_ERROR(error, SERIAL, ORIGIN_OS, _device.SerialIO->IOSer.io_Error);
+        error = ERR_WRITE_FAILED;
+        error_update_last(_device.SerialIO->IOSer.io_Error);
     }
 
     return error;
 
 }
 
-
+/*
 error_t ser_write_int8(int8_t value) {
     return ser_write_block(&value, sizeof(int8_t), 0);
 }
@@ -136,77 +169,35 @@ error_t ser_write_int16(int16_t value) {
     return ser_write_block(&value, sizeof(int16_t), 0);
 }
 
-error_t ser_write_int32(int32_t value) {
+error_t ser_write_int32(int32_t value) 
+{
     return ser_write_block(&value, sizeof(int32_t), 0);
 }
+*/
 
-
-/*
-error_t ser_write_byte(uint8_t data, int32_t *size_ret)
+error_t ser_read_data(uint8_t **buffer, int32_t *size_ret)
 {
-    char cmd = data;
+    error_t error = ERR_OK;
+    uint16_t length = 0;
+    int32_t size = 0;
 
-    return ser_write_block((void *) &cmd, 1, size_ret);
-}
-*/
-
-error_t ser_read_command(cmd_t *cmd_ret) {
-    cmd_t cmd;
-    error_t error = { ERR_OK, 0 };
-    int32_t len = 0;
-
-    error = ser_read_block((void *) &cmd, sizeof(cmd_t), &len);
-    if(FAILED(error))
-        return error;
-
-    if(cmd_ret)
-        *cmd_ret = cmd;
-
-    return error;
-}
-
-/*
-error_t ser_read_input_size(int32_t *size_ret) {
-    int32_t result;
-    int32_t len = 0;
-    error_t error = RESULT_OK;
-
-
-    error = ser_read_block((void *) &result, sizeof(int32_t), &len);
-    if(error) {
-        return error;
+    if(buffer == NULL || size_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
     }
 
-    if(size_ret)
-        *size_ret = result;
-
-    return error;
-}
-*/
-
-error_t ser_write_string(const char *s) {
-    int32_t written, len = strlen(s);
-    error_t error = { ERR_OK, 0 };
-    if(len == 0)
-        return error;
-
-    error = ser_write_block((const void *) &len, sizeof(len), &written);
-    if (FAILED(error)) {
-        on_error(error, "write_string: write length failed", 0);
-
-        return error;
+    if(error == ERR_OK)
+    {
+        error = data_stream_packet_read(ser_buffer, ser_reader, &size);
     }
 
-    error = ser_write_block((const void *) s, len, &written);
-    if (FAILED(error)) {
-        on_error(error, "write_string: write data failed", 0);
+    if(error == ERR_OK)
+    {
+        *size_ret = size;
+        *buffer = &ser_buffer[0];
     }
 
     return error;
-}
-
-error_t ser_write_error(error_t error) {
-    return ser_write_block(&error, sizeof(error), 0);
 }
 
 void ser_shutdown(void) {

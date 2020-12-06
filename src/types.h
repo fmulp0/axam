@@ -16,6 +16,9 @@ typedef unsigned short      uint16_t;
 typedef signed int          int32_t;
 typedef unsigned int        uint32_t;
 
-typedef int8_t              cmd_t;
+typedef uint8_t             bool_t;
+
+#define false               0
+#define true                1
 
 #endif

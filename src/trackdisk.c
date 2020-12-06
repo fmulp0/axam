@@ -7,124 +7,185 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int                     is_open;
+bool_t                  is_open;
 struct MsgPort *        TDMP;
 struct IOExtTD *        TDIO;
 
+error_t td_init(int8_t drive) 
+{
+    error_t error = ERR_OK;
 
-error_t td_init(int8_t drive) {
-    error_t error = { ERR_OK, 0 };
-
-    TDMP = (struct MsgPort *) CreatePort(NULL, NULL);
-
-    if(TDMP == NULL) {
-        puts("CreatePort failed\n");
-
-        td_shutdown();
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_AX, ERR_OPEN);
-        return error;
+    if(drive < 0 || drive > 3)
+    {
+        error = ERR_INVALID_ARG;
     }
 
-    TDIO = (struct IOExtTD *) CreateExtIO(TDMP, sizeof(struct IOExtTD));
-    if (TDIO == NULL) {
-        printf("CreateExtIO failed\n");
-        td_shutdown();
+    if(error == ERR_OK)
+    {
+        TDMP = (struct MsgPort *) CreatePort(NULL, NULL);
 
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_AX, ERR_OPEN);
-        return error;
+        if(TDMP == NULL) {
+            puts("CreatePort failed\n");
+            td_shutdown();
+            error = ERR_OPEN;
+            error_update_last(IoErr());
+        }
     }
 
-    if (OpenDevice("trackdisk.device", drive, (struct IORequest *) TDIO, 0L)) {
-        printf("OpenDevice failed\n");
-        td_shutdown();
-
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_AX, ERR_OPEN);
-        return error;
+    if(error == ERR_OK)
+    {
+        TDIO = (struct IOExtTD *) CreateExtIO(TDMP, sizeof(struct IOExtTD));
+        if (TDIO == NULL) {
+            printf("CreateExtIO failed\n");
+            td_shutdown();
+            error = ERR_OPEN;
+            error_update_last(IoErr());
+        }
     }
 
-    is_open = 1;
+    if(error == ERR_OK)
+    {
+        if (OpenDevice("trackdisk.device", drive, (struct IORequest *) TDIO, 0L)) {
+            printf("OpenDevice failed\n");
+            td_shutdown();
 
-    error = td_motor(1);
+            error = ERR_OPEN;
+        }
+    }
 
-    if(FAILED(error)) {
+    if(error == ERR_OK)
+    {
+        is_open = true;
+
+        error = td_motor(1);
+    }
+
+    if(error == ERR_OK) 
+    {
+        printf("open device %s successful\n", "trackdisk.device");
+    }
+    else
+    {
         printf("open device trackdisk.device failed\n");
-
-        return error;
     }
-
-    printf("open device %s successful\n", "trackdisk.device");
 
     return error;
 }
 
-error_t td_read_sector(void *data, uint32_t sector_number, uint32_t *size_ret) {
-    error_t error = { ERR_OK, 0 };
+error_t td_read_sector(void *buffer, uint32_t sector_number, int32_t *size_ret) 
+{
+    error_t error = ERR_OK;
 
-    TDIO->iotd_Count = 0;
-    TDIO->iotd_Req.io_Offset = sector_number * SECTOR_LEN;
-    TDIO->iotd_Req.io_Command  = CMD_READ;
-    /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
-    TDIO->iotd_Req.io_Length = SECTOR_LEN;
-    TDIO->iotd_Req.io_Data = data;
-    if (DoIO((struct IORequest *)TDIO)) {
-        /* Inform user that query failed */
-        printf("td_read_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
-
-        return error;
+    if(buffer == NULL || size_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
     }
 
-    if(size_ret)
+    if(error == ERR_OK)
+    {
+        if(sector_number >= NUMSECS)
+        {
+            error = ERR_INVALID_ARG;
+        }
+    }
+
+    if(error == ERR_OK)
+    {
+        TDIO->iotd_Count = 0;
+        TDIO->iotd_Req.io_Offset = sector_number * SECTOR_LEN;
+        TDIO->iotd_Req.io_Command  = CMD_READ;
+        /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
+        TDIO->iotd_Req.io_Length = SECTOR_LEN;
+        TDIO->iotd_Req.io_Data = buffer;
+        if (DoIO((struct IORequest *)TDIO)) {
+            /* Inform user that query failed */
+            printf("td_read_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
+            error = ERR_READ_FAILED;
+            error_update_last(TDIO->iotd_Req.io_Error);
+        }
+
+    }
+
+    if(error == ERR_OK)
+    {
         *size_ret = TDIO->iotd_Req.io_Actual;
+    }
 
     return error;
 }
 
-error_t td_write_sector(const void *data, uint32_t sector_number, uint32_t *size_ret) {
-    error_t error = { ERR_OK, 0 };
+error_t td_write_sector(const void *buffer, uint32_t sector_number, int32_t *size_ret) {
+    error_t error = ERR_OK;
 
-    TDIO->iotd_Count = 0;
-    TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
-    /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
-    TDIO->iotd_Req.io_Command  = CMD_WRITE;
-    TDIO->iotd_Req.io_Length = TRACK_SIZE;
-    TDIO->iotd_Req.io_Data = (void *)data;
-    if (DoIO((struct IORequest *)TDIO)) {
-        /* Inform user that query failed */
-        printf("td_write_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
-
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
-
-        return error;
+    if(buffer == NULL || size_ret == NULL)
+    {
+        error = ERR_NULLPOINTER;
     }
 
-        if(size_ret)
-            *size_ret = TDIO->iotd_Req.io_Actual;
+    if(error == ERR_OK)
+    {
+        if(sector_number >= NUMSECS)
+        {
+            error = ERR_INVALID_ARG;
+        }
+    }
 
-        return error;
+    if(error == ERR_OK)
+    {
+        TDIO->iotd_Count = 0;
+        TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
+        /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
+        TDIO->iotd_Req.io_Command  = CMD_WRITE;
+        TDIO->iotd_Req.io_Length = TRACK_SIZE;
+        TDIO->iotd_Req.io_Data = (void *)buffer;
+        if (DoIO((struct IORequest *)TDIO)) {
+            /* Inform user that query failed */
+            printf("td_write_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
+            error = ERR_WRITE_FAILED;
+            error_update_last(TDIO->iotd_Req.io_Error);
+        }
+    }
+
+    if(error == ERR_OK)
+    {
+        *size_ret = TDIO->iotd_Req.io_Actual;
+    }
+
+    return error;
 }
 
-error_t td_format_sector(const void *data, uint32_t sector_number) {
-    error_t error = { ERR_OK, 0 };
+error_t td_format_sector(const void *buffer, uint32_t sector_number) {
+    error_t error = ERR_OK;
 
-    TDIO->iotd_Count = 0;
-    TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
-    /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
-    TDIO->iotd_Req.io_Command  = TD_FORMAT;
-    TDIO->iotd_Req.io_Length = TRACK_SIZE;
-    TDIO->iotd_Req.io_Data = (void *)data;
-    if (DoIO((struct IORequest *)TDIO)) {
-        /* Inform user that query failed */
-        printf("td_format_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
-
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
-
-        return error;
+    if(buffer == NULL)
+    {
+        error = ERR_NULLPOINTER;
     }
-/*
-        // if(size_ret)
-        //     *size_ret = TDIO->iotd_Req.io_Actual;
-*/
+
+    if(error == ERR_OK)
+    {
+        if(sector_number >= NUMSECS)
+        {
+            error = ERR_INVALID_ARG;
+        }
+    }
+
+    if(error == ERR_OK)
+    {
+        TDIO->iotd_Count = 0;
+        TDIO->iotd_Req.io_Offset = sector_number * TRACK_SIZE;
+        /* TDIO->iotd_Req.io_Flags = IOTDF_INDEXSNYC; */
+        TDIO->iotd_Req.io_Command  = TD_FORMAT;
+        TDIO->iotd_Req.io_Length = TRACK_SIZE;
+        TDIO->iotd_Req.io_Data = (void *)buffer;
+        if (DoIO((struct IORequest *)TDIO)) 
+        {
+            /* Inform user that query failed */
+            printf("td_format_sector. Error - %d\n", TDIO->iotd_Req.io_Error);
+            error = ERR_WRITE_FAILED;
+            error_update_last(TDIO->iotd_Req.io_Error);
+        }
+    }
 
     return error;
 }
@@ -142,15 +203,15 @@ int td_disk_change_count() {
 */
 
 error_t td_motor(uint8_t on) {
-    error_t error = { ERR_OK, 0 };
+    error_t error = ERR_OK;
 
     TDIO->iotd_Req.io_Length = on ? 1 : 0;
     TDIO->iotd_Req.io_Command  = TD_MOTOR;
     if (DoIO((struct IORequest *)TDIO)) {
         /* Inform user that query failed */
         printf("td_motor. Error - %d\n", TDIO->iotd_Req.io_Error);
-
-        MAKE_ERROR(error, TRACKDISK, ORIGIN_OS, TDIO->iotd_Req.io_Error);
+        error = ERR_MOTOR;
+        error_update_last(TDIO->iotd_Req.io_Error);
     }
 
     return error;
